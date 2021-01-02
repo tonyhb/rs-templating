@@ -87,7 +87,7 @@ impl Template {
     //     the block shouldn't be counted.
     //
     pub fn get_variables(&self) -> Vec<String> {
-        let tpl = self.tera.get_template(&"tpl").unwrap();
+        let tpl = self.tera.get_template(&TEMPLATE_NAME).unwrap();
 
         // eval_expr evaluates the expression given to see whether we have
         // an identifier - a varaible that we should add.
@@ -211,7 +211,7 @@ impl Template {
     }
 
     pub fn execute_with_context(&self, ctx: &tera::Context) -> Result<String, tera::Error> {
-        self.tera.render("tpl", &ctx)
+        self.tera.render(TEMPLATE_NAME, &ctx)
     }
 
     // generate_context creates templating context from a JSON-stringified object.
