@@ -1,0 +1,29 @@
+[package]
+name = "rs-templating"
+version = "0.1.0"
+authors = ["Tony Holdstock-Brown <tonyhb@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+debug = false
+
+[dependencies]
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+js-sys = "0.3"
+
+[dependencies.tera]
+git = "https://github.com/tonyhb/tera.git"
+rev = "1b2ea6ce7a8a8f795b7ffc16eef90269c7c3fc04"
+default-features = false
+features = ["builtins"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
