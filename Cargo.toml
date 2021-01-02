@@ -1,6 +1,6 @@
 [package]
 name = "rs-templating"
-version = "0.1.0"
+version = "0.1.3"
 authors = ["Tony Holdstock-Brown <tonyhb@gmail.com>"]
 edition = "2018"
 
@@ -21,7 +21,7 @@ js-sys = "0.3"
 
 [dependencies.tera]
 git = "https://github.com/tonyhb/tera.git"
-rev = "1b2ea6ce7a8a8f795b7ffc16eef90269c7c3fc04"
+rev = "9c9504e180d951f5d6b549d784e14473de6c102a"
 default-features = false
 features = ["builtins"]
 

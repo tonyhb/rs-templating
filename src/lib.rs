@@ -65,6 +65,7 @@ impl Template {
             source,
             tera: tera::Tera::default(),
         };
+        tpl.tera.ignore_undefined = true;
         // Ensure we autoescape our template
         tpl.tera.autoescape_on(vec![TEMPLATE_NAME]);
         if let Err(val) = tpl.parse() {
@@ -326,4 +327,15 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), "mr bean");
     }
+
+    #[test]
+    fn executing_templates_with_missing_vars() {
+        let tpl = crate::Template::new("{{ name }}, {{ company }}{% for p in products %}{{ p.name }}{% endfor %}".to_string()).unwrap();
+        let ctx = tpl.generate_context("{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123 }] }".into());
+        assert!(ctx.is_ok(), "context generated");
+        let res = tpl.execute_with_context(&ctx.unwrap());
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), "mr bean, ");
+    }
+
 }
