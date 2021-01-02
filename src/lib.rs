@@ -29,24 +29,24 @@ pub struct Template {
 impl Template {
 
     #[wasm_bindgen]
-    pub fn _new(source: String) -> Result<Template, JsValue> {
-        return jserr!(Template::new(source))
+    pub fn new(source: String) -> Result<Template, JsValue> {
+        return jserr!(Template::init(source))
     }
 
     #[wasm_bindgen]
-    pub fn execute(&mut self, val: &JsValue) -> Result<String, JsValue> {
-        let context = match self.generate_context(val) {
+    pub fn execute(&self, val: JsValue) -> Result<String, JsValue> {
+        let context = match self.generate_context(val.as_string().ok_or("value is not a json encoded string")?) {
             Err(e) => return Err(JsValue::from(format!("error generating context: {}", e))),
             Ok(c) => c,
         };
 
-        jserr!(self.tera.render("tpl", &context))
+        jserr!(self.execute_with_context(&context))
     }
 
     #[wasm_bindgen(getter)]
-    pub fn _variables(&self) -> Vec<JsValue> {
+    pub fn variables(&self) -> Vec<JsValue> {
         let mut res: Vec<JsValue> = vec![];
-        for str in self.variables().iter() {
+        for str in self.get_variables().iter() {
             res.push(str.into());
         }
         return res
@@ -60,7 +60,7 @@ impl Template {
 
 // shared, non-wasm functions
 impl Template {
-    pub fn new(source: String) -> Result<Template, Box<dyn std::error::Error>> {
+    pub fn init(source: String) -> Result<Template, Box<dyn std::error::Error>> {
         let mut tpl = Template {
             source,
             tera: tera::Tera::default(),
@@ -85,7 +85,7 @@ impl Template {
     //   - if a template contains a for loop ("{% for item in products %}"), item within
     //     the block shouldn't be counted.
     //
-    pub fn variables(&self) -> Vec<String> {
+    pub fn get_variables(&self) -> Vec<String> {
         let tpl = self.tera.get_template(&"tpl").unwrap();
 
         // eval_expr evaluates the expression given to see whether we have
@@ -209,34 +209,15 @@ impl Template {
         res
     }
 
+    pub fn execute_with_context(&self, ctx: &tera::Context) -> Result<String, tera::Error> {
+        self.tera.render("tpl", &ctx)
+    }
 
     // generate_context creates templating context from a JSON-stringified object.
-    fn generate_context(&mut self, val: &JsValue) -> Result<tera::Context, Box<dyn std::error::Error>> {
-        let sj = serde_json::from_str(&*val.as_string().ok_or("value is not a json encoded string")?)?;
-        let ctx = tera::Context::from_serialize(sj)?;
+    fn generate_context(&self, val: String) -> Result<tera::Context, Box<dyn std::error::Error>> {
+        let map: std::collections::HashMap<String, serde_json::Value> = serde_json::from_str(&val)?;
+        let ctx = tera::Context::from_serialize(map)?;
         Ok(ctx)
-
-        /*
-        let obj = js_sys::Object::try_from(val).ok_or("not an object")?;
-        for val in js_sys::Object::entries(obj).iter() {
-            // arr is an Array [key, value] for each key in the object.
-            let arr = js_sys::Array::from(&val);
-
-            let k = arr.get(0).as_string().unwrap();
-            let v = arr.get(1);
-
-            match Typeof::from(v) {
-                Typeof::Boolean(b) => { ctx.insert(k, &b); },
-                Typeof::Number(n) => { ctx.insert(k, &n); },
-                Typeof::String(s) => { ctx.insert(k, &s); },
-                Typeof::Object(o) => {
-                    // TODO: Make a hashmap containing these variables, then insert using
-                    // ctx.from_serialize();
-                },
-                _ => {},
-            }
-        }
-        */
     }
 
     // parse parses the template using tera
@@ -262,82 +243,87 @@ mod tests {
 
     #[test]
     fn it_errors_with_invalid_templates() {
-        let res = crate::Template::new("{{ foo".to_string());
+        let res = crate::Template::init("{{ foo".to_string());
         assert!(res.is_err())
     }
 
     #[test]
     fn it_instantiates_with_valid_templates() {
-        let res = crate::Template::new("{{ foo }}".to_string());
+        let res = crate::Template::init("{{ foo }}".to_string());
         assert!(res.is_ok())
     }
 
     #[test]
     fn it_returns_variables_with_basic_template() {
-        let res = crate::Template::new("Hi {{ first_name }}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("Hi {{ first_name }}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("first_name")]);
     }
 
     #[test]
     fn it_returns_variables_with_if() {
-        let res = crate::Template::new("Hi {% if first_name %} hi {{ last_name }} {% else %} hi {{ email }} {% endif %}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("Hi {% if first_name %} hi {{ last_name }} {% else %} hi {{ email }} {% endif %}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("first_name"), String::from("last_name"), String::from("email")]);
     }
 
     #[test]
     fn it_returns_variables_with_fors_and_dot_prefix() {
-        let res = crate::Template::new("{% for product in products %}{{loop.index}}. {{product.name}} {{ order_number }} {% endfor %}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{% for product in products %}{{loop.index}}. {{product.name}} {{ order_number }} {% endfor %}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("products"), String::from("order_number")]);
     }
 
     #[test]
     fn it_returns_variables_with_fors_and_bracket_prefix() {
-        let res = crate::Template::new("{% for product in products %}{{loop.index}}. {{product['name']}} {{ order_number }} {% endfor %}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{% for product in products %}{{loop.index}}. {{product['name']}} {{ order_number }} {% endfor %}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("products"), String::from("order_number")]);
     }
 
     #[test]
     fn it_returns_variables_with_fors_with_blacklist_test() {
         // add {{ product }} after blacklist loop - should be found.
-        let res = crate::Template::new("{% for product in products %}{{loop.index}}. {{product.name}} {{ order_number }} {% endfor %} {{ product }}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{% for product in products %}{{loop.index}}. {{product.name}} {{ order_number }} {% endfor %} {{ product }}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("products"), String::from("order_number"), String::from("product")]);
     }
 
     #[test]
     fn it_ignores_set_vars() {
-        let res = crate::Template::new("{{ name }} {% set uname = name %} {{ uname }}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{{ name }} {% set uname = name %} {{ uname }}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("name")]);
     }
 
     #[test]
     fn it_captures_vars_with_no_blocks() {
-        let res = crate::Template::new("{% set uname = name %}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{% set uname = name %}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("name")]);
     }
 
     #[test]
     fn it_captures_vars_with_filters() {
-        let res = crate::Template::new("{% set uname = name | upper %}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{% set uname = name | upper %}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("name")]);
     }
 
     #[test]
     fn it_captures_filters() {
-        let res = crate::Template::new("{{  name | upper }}".to_string()).unwrap();
-        let vars = res.variables();
+        let res = crate::Template::init("{{  name | upper }}".to_string()).unwrap();
+        let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("name")]);
     }
 
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn executing_templates() {
+        let tpl = crate::Template::new("{{ name }}".to_string()).unwrap();
+        let ctx = tpl.generate_context("{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123}] }".into());
+        assert!(ctx.is_ok(), "context generated");
+        let res = tpl.execute_with_context(&ctx.unwrap());
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), "mr bean");
     }
 }
