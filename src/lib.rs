@@ -35,8 +35,6 @@ impl Template {
 
     #[wasm_bindgen]
     pub fn execute(&mut self, val: &JsValue) -> Result<String, JsValue> {
-        // TODO: Arbitrary JSON map from Serde, into Context.
-        // TODO: Escape!
         let context = match self.generate_context(val) {
             Err(e) => return Err(JsValue::from(format!("error generating context: {}", e))),
             Ok(c) => c,
