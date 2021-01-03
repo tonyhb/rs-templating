@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn executing_templates_with_missing_vars() {
-        let tpl = crate::Template::new("{{ name }}, {{ company }}{% for p in products %}{{ p.name }}{% endfor %}".to_string()).unwrap();
+        let tpl = crate::Template::new("{{ name }}, {{ company }}{% for o in orders %}{{ o.name }}{% endfor %}".to_string()).unwrap();
         let ctx = tpl.generate_context("{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123 }] }".into());
         assert!(ctx.is_ok(), "context generated");
         let res = tpl.execute_with_context(&ctx.unwrap());
