@@ -224,16 +224,6 @@ impl Template {
     // parse parses the template using tera
     fn parse(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         self.tera.add_raw_template(TEMPLATE_NAME, self.source.as_str())?;
-        self.validate()?;
-        Ok(())
-    }
-
-    fn validate(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO: Inspect AST.  If the template uses
-        //   - Node::Extends
-        //   - Node::Include
-        //   - Node::ImportMacro
-        // Fail
         Ok(())
     }
 }
