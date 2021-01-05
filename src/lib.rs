@@ -34,8 +34,14 @@ impl Template {
     }
 
     #[wasm_bindgen]
-    pub fn execute(&self, val: JsValue) -> Result<String, JsValue> {
-        let context = match self.generate_context(val.as_string().ok_or("value is not a json encoded string")?) {
+    pub fn compile_and_execute(source: String, val: String) -> Result<String, JsValue> {
+        let tpl = Template::new(source)?;
+        tpl.execute(val)
+    }
+
+    #[wasm_bindgen]
+    pub fn execute(&self, val: String) -> Result<String, JsValue> {
+        let context = match self.generate_context(val) {
             Err(e) => return Err(JsValue::from(format!("error generating context: {}", e))),
             Ok(c) => c,
         };
