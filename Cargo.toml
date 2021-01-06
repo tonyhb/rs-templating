@@ -10,7 +10,9 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [profile.release]
+opt-level = "s"
 debug = false
+lto = "thin"
 
 [dependencies]
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
