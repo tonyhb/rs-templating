@@ -33,7 +33,6 @@ macro_rules! jserr {
 // wasm32-wasi is also not able to return structs and create new objects, right now, so
 // this is a top-level export.
 #[wasm_bindgen]
-#[cfg(target_arch = "wasm32")]
 #[cfg(target_os = "wasi")]
 pub fn compile_and_execute(source: String, val: String) -> String {
     let tpl = match Template::init(source) {
@@ -49,6 +48,16 @@ pub fn compile_and_execute(source: String, val: String) -> String {
     match tpl.execute_with_context(&context) {
         Err(e) => return format!("error executing template: {}", e),
         Ok(c) => c.into(),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn compile_and_execute(source: String, val: String) -> Result<String, Box<dyn std::error::Error>> {
+    let tpl = Template::init(source)?;
+    let context = generate_context(val)?;
+    match tpl.execute_with_context(&context) {
+        Ok(str) => Ok(str),
+        Err(err) => Err(err.into()),
     }
 }
 
@@ -68,8 +77,7 @@ pub struct Template {
 
 // On wasm32-wasi do not export the TEmplate struct via wasm-bindgen.  This
 // throws an error;  structs are not compatible interface types right now.
-#[cfg(target_arch = "wasm32")]
-#[cfg(target_os = "wasi")]
+#[cfg(not(target_os = "unknown"))]
 pub struct Template {
     source: String,
     tera: tera::Tera,
