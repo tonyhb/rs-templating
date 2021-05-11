@@ -8,6 +8,10 @@ const LOOP_CONSTS: [&str; 4] = ["loop.index", "loop.index0", "loop.first", "loop
 
 // define a quick macro for converting a Result<T, <Box dyn std::error::Error>> into
 // Result<T, JsValue>.
+//
+// This is specifically used in the wasm32-unknown-unknown target for browsers.
+#[cfg(target_arch = "wasm32")]
+#[cfg(target_os = "unknown")]
 macro_rules! jserr {
     ($expression:expr) => {
         match $expression {
@@ -19,18 +23,75 @@ macro_rules! jserr {
     };
 }
 
+// compile_and_execute is a wasm32-wasi target function which allows executing a template
+// from a non-browser context.  This allows the use of eg. wasmtime to execute templating
+//
+// Note that right now wasm_bindgen only allows the support of returning a
+// Result<T, JsValue> result type.  JsValue is not supported within the wasm32-wasi target,
+// so we are unable to return a standard Result type here.  This really sucks.
+//
+// wasm32-wasi is also not able to return structs and create new objects, right now, so
+// this is a top-level export.
 #[wasm_bindgen]
+#[cfg(target_os = "wasi")]
+pub fn compile_and_execute(source: String, val: String) -> String {
+    let tpl = match Template::init(source) {
+        Err(e) => return format!("error creating template: {}", e),
+        Ok(t) => t,
+    };
+
+    let context = match generate_context(val) {
+        Err(e) => return format!("error generating context: {}", e),
+        Ok(c) => c,
+    };
+
+    match tpl.execute_with_context(&context) {
+        Err(e) => return format!("error executing template: {}", e),
+        Ok(c) => c.into(),
+    }
+}
+
+// compile_and_execute is the non-webassembly function which allows executing a template
+// from the command line.  It accepts a template string and a JSON map of variables, and
+// returns the executed template.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn compile_and_execute(source: String, val: String) -> Result<String, Box<dyn std::error::Error>> {
+    let tpl = Template::init(source)?;
+    let context = generate_context(val)?;
+    match tpl.execute_with_context(&context) {
+        Ok(str) => Ok(str),
+        Err(err) => Err(err.into()),
+    }
+}
+
+// generate_context creates templating context from a JSON-stringified object.
+fn generate_context(val: String) -> Result<tera::Context, Box<dyn std::error::Error>> {
+    let map: std::collections::HashMap<String, serde_json::Value> = serde_json::from_str(&val)?;
+    let ctx = tera::Context::from_serialize(map)?;
+    Ok(ctx)
+}
+
+#[wasm_bindgen]
+#[cfg(target_os = "unknown")]
+pub struct Template {
+    source: String,
+    tera: tera::Tera,
+}
+
+// On wasm32-wasi do not export the TEmplate struct via wasm-bindgen.  This
+// throws an error;  structs are not compatible interface types right now.
+#[cfg(not(target_os = "unknown"))]
 pub struct Template {
     source: String,
     tera: tera::Tera,
 }
 
 #[wasm_bindgen]
+#[cfg(target_os = "unknown")]
 impl Template {
-
     #[wasm_bindgen]
     pub fn new(source: String) -> Result<Template, JsValue> {
-        return jserr!(Template::init(source))
+        return jserr!(Template::init(source));
     }
 
     #[wasm_bindgen]
@@ -41,7 +102,7 @@ impl Template {
 
     #[wasm_bindgen]
     pub fn execute(&self, val: String) -> Result<String, JsValue> {
-        let context = match self.generate_context(val) {
+        let context = match generate_context(val) {
             Err(e) => return Err(JsValue::from(format!("error generating context: {}", e))),
             Ok(c) => c,
         };
@@ -55,7 +116,7 @@ impl Template {
         for str in self.get_variables().iter() {
             res.push(str.into());
         }
-        return res
+        return res;
     }
 
     #[wasm_bindgen(getter)]
@@ -82,7 +143,7 @@ impl Template {
 
     // variables inspects the ast of the template to determine which variables are specified
     // in the template.
-    // 
+    //
     // in short, the approach is to recursively iterate through the AST (eg. within loops,
     // if expressions, blocks) and determine any "{{ ident }}" nodes, then grab the identifier
     // specified.
@@ -220,20 +281,13 @@ impl Template {
         self.tera.render(TEMPLATE_NAME, &ctx)
     }
 
-    // generate_context creates templating context from a JSON-stringified object.
-    fn generate_context(&self, val: String) -> Result<tera::Context, Box<dyn std::error::Error>> {
-        let map: std::collections::HashMap<String, serde_json::Value> = serde_json::from_str(&val)?;
-        let ctx = tera::Context::from_serialize(map)?;
-        Ok(ctx)
-    }
-
     // parse parses the template using tera
     fn parse(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.tera.add_raw_template(TEMPLATE_NAME, self.source.as_str())?;
+        self.tera
+            .add_raw_template(TEMPLATE_NAME, self.source.as_str())?;
         Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -259,23 +313,40 @@ mod tests {
 
     #[test]
     fn it_returns_variables_with_if() {
-        let res = crate::Template::init("Hi {% if first_name %} hi {{ last_name }} {% else %} hi {{ email }} {% endif %}".to_string()).unwrap();
+        let res = crate::Template::init(
+            "Hi {% if first_name %} hi {{ last_name }} {% else %} hi {{ email }} {% endif %}"
+                .to_string(),
+        )
+        .unwrap();
         let vars = res.get_variables();
-        assert_eq!(vars, vec![String::from("first_name"), String::from("last_name"), String::from("email")]);
+        assert_eq!(
+            vars,
+            vec![
+                String::from("first_name"),
+                String::from("last_name"),
+                String::from("email")
+            ]
+        );
     }
 
     #[test]
     fn it_returns_variables_with_fors_and_dot_prefix() {
         let res = crate::Template::init("{% for product in products %}{{loop.index}}. {{product.name}} {{ order_number }} {% endfor %}".to_string()).unwrap();
         let vars = res.get_variables();
-        assert_eq!(vars, vec![String::from("products"), String::from("order_number")]);
+        assert_eq!(
+            vars,
+            vec![String::from("products"), String::from("order_number")]
+        );
     }
 
     #[test]
     fn it_returns_variables_with_fors_and_bracket_prefix() {
         let res = crate::Template::init("{% for product in products %}{{loop.index}}. {{product['name']}} {{ order_number }} {% endfor %}".to_string()).unwrap();
         let vars = res.get_variables();
-        assert_eq!(vars, vec![String::from("products"), String::from("order_number")]);
+        assert_eq!(
+            vars,
+            vec![String::from("products"), String::from("order_number")]
+        );
     }
 
     #[test]
@@ -283,12 +354,21 @@ mod tests {
         // add {{ product }} after blacklist loop - should be found.
         let res = crate::Template::init("{% for product in products %}{{loop.index}}. {{product.name}} {{ order_number }} {% endfor %} {{ product }}".to_string()).unwrap();
         let vars = res.get_variables();
-        assert_eq!(vars, vec![String::from("products"), String::from("order_number"), String::from("product")]);
+        assert_eq!(
+            vars,
+            vec![
+                String::from("products"),
+                String::from("order_number"),
+                String::from("product")
+            ]
+        );
     }
 
     #[test]
     fn it_ignores_set_vars() {
-        let res = crate::Template::init("{{ name }} {% set uname = name %} {{ uname }}".to_string()).unwrap();
+        let res =
+            crate::Template::init("{{ name }} {% set uname = name %} {{ uname }}".to_string())
+                .unwrap();
         let vars = res.get_variables();
         assert_eq!(vars, vec![String::from("name")]);
     }
@@ -316,8 +396,10 @@ mod tests {
 
     #[test]
     fn executing_templates() {
-        let tpl = crate::Template::new("{{ name }}".to_string()).unwrap();
-        let ctx = tpl.generate_context("{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123}] }".into());
+        let tpl = crate::Template::init("{{ name }}".to_string()).unwrap();
+        let ctx = crate::generate_context(
+            "{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123}] }".into(),
+        );
         assert!(ctx.is_ok(), "context generated");
         let res = tpl.execute_with_context(&ctx.unwrap());
         assert!(res.is_ok());
@@ -326,12 +408,16 @@ mod tests {
 
     #[test]
     fn executing_templates_with_missing_vars() {
-        let tpl = crate::Template::new("{{ name }}, {{ company }}{% for o in orders %}{{ o.name }}{% endfor %}".to_string()).unwrap();
-        let ctx = tpl.generate_context("{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123 }] }".into());
+        let tpl = crate::Template::init(
+            "{{ name }}, {{ company }}{% for o in orders %}{{ o.name }}{% endfor %}".to_string(),
+        )
+        .unwrap();
+        let ctx = crate::generate_context(
+            "{\"name\": \"mr bean\", \"products\": [{ \"sku\": 123 }] }".into(),
+        );
         assert!(ctx.is_ok(), "context generated");
         let res = tpl.execute_with_context(&ctx.unwrap());
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), "mr bean, ");
     }
-
 }
