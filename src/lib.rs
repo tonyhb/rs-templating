@@ -51,6 +51,9 @@ pub fn compile_and_execute(source: String, val: String) -> String {
     }
 }
 
+// compile_and_execute is the non-webassembly function which allows executing a template
+// from the command line.  It accepts a template string and a JSON map of variables, and
+// returns the executed template.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn compile_and_execute(source: String, val: String) -> Result<String, Box<dyn std::error::Error>> {
     let tpl = Template::init(source)?;
