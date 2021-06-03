@@ -133,8 +133,6 @@ impl Template {
             tera: tera::Tera::default(),
         };
         tpl.tera.ignore_undefined = true;
-        // Ensure we autoescape our template
-        tpl.tera.autoescape_on(vec![TEMPLATE_NAME]);
         if let Err(val) = tpl.parse() {
             return Err(val);
         }

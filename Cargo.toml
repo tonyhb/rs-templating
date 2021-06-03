@@ -23,7 +23,7 @@ js-sys = "0.3"
 
 [dependencies.tera]
 git = "https://github.com/tonyhb/tera.git"
-rev = "9c9504e180d951f5d6b549d784e14473de6c102a"
+rev = "bcd73f53821d287c658865a6807f0917277ff076"
 default-features = false
 features = ["builtins"]
 
