@@ -1,9 +1,9 @@
 use std::iter::FromIterator;
 
-#[path = "lib.rs"]
+#[path = "rs_templating.rs"]
 mod rs_templating;
 
-// some bullshit binary that exists while webassembly interface types don't.
+// some binary that exists while webassembly interface types don't.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn main() {
     let args: Vec<String> = std::env::args().collect();
