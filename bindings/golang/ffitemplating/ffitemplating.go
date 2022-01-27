@@ -1,7 +1,7 @@
 package ffitemplating
 
 /*
-#cgo LDFLAGS: ./librs_templating.a -ldl -lm
+#cgo LDFLAGS: ${SRCDIR}/librs_templating.a -ldl -lm
 #include "../lib_ffi.h"
 */
 import "C"
