@@ -10,7 +10,7 @@ build:
 	sed -i 's#rs-templating#@tonyhb/rs-templating#' pkg/package.json
 
 go:
-	cp ./target/release/librs_templating.a ./bindings/golang/
+	cp ./target/release/librs_templating.a ./bindings/golang/ffitemplating
 	cp ./src/lib_ffi.h ./bindings/golang/
 
 test:

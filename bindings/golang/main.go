@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tonyhb/rs-templatinh/bindings/golang/ffitemplating"
+	"github.com/tonyhb/rs-templating/bindings/golang/ffitemplating"
 )
 
 func main() {
