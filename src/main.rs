@@ -1,9 +1,11 @@
 use std::iter::FromIterator;
 
-#[path = "lib.rs"]
+#[path = "rs_templating.rs"]
 mod rs_templating;
 
-// some bullshit binary that exists while webassembly interface types don't.
+// This binary allows you to execute templates by passing in the template string
+// and a JSON string, or to inspect template variables by passing in -vars with
+// the template string.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn main() {
     let args: Vec<String> = std::env::args().collect();
