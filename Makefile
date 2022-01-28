@@ -23,8 +23,11 @@ build-x86:
 
 build-aarch64:
 	rustup target add aarch64-unknown-linux-musl
+	rustup target add aarch64-unknown-linux-gnu
 	cargo build --lib --release --target aarch64-unknown-linux-musl
+	cargo build --lib --release --target aarch64-unknown-linux-gnu
 	cp ./target/aarch64-unknown-linux-musl/release/librs_templating.a ./bindings/golang/ffitemplating/librs_templating_aarch64_linux_musl.a
+	cp ./target/aarch64-unknown-linux-gnu/release/librs_templating.a ./bindings/golang/ffitemplating/librs_templating_aarch64_linux_gnu.a
 
 
 go:
