@@ -3,7 +3,7 @@
 package ffitemplating
 
 /*
-#cgo linux,x86 LDFLAGS: ${SRCDIR}/librs_templating_x86_linux_musl.a -ldl -lm
+#cgo linux,amd64 LDFLAGS: ${SRCDIR}/librs_templating_x86_linux_musl.a -ldl -lm
 #cgo linux,arm64 LDFLAGS: ${SRCDIR}/librs_templating_aarch64_linux_musl.a -ldl -lm
 #include "./lib_ffi.h"
 */
