@@ -29,6 +29,12 @@ build-aarch64:
 	cp ./target/aarch64-unknown-linux-musl/release/librs_templating.a ./bindings/golang/ffitemplating/librs_templating_aarch64_linux_musl.a
 	cp ./target/aarch64-unknown-linux-gnu/release/librs_templating.a ./bindings/golang/ffitemplating/librs_templating_aarch64_linux_gnu.a
 
+build-darwin-aarch64:
+	rustup target add aarch64-apple-darwin
+	cargo build --lib --release --target aarch64-apple-darwin
+	cp ./target/aarch64-apple-darwin/release/librs_templating.a ./bindings/golang/ffitemplating/librs_templating_aarch64_darwin.a
+
+
 
 go:
 	cp ./src/lib_ffi.h ./bindings/golang/
