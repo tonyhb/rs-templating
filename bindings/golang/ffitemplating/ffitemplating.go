@@ -5,6 +5,8 @@ package ffitemplating
 /*
 #cgo linux,amd64 LDFLAGS: ${SRCDIR}/librs_templating_x86_linux_gnu.a -ldl -lm
 #cgo linux,arm64 LDFLAGS: ${SRCDIR}/librs_templating_aarch64_linux_gnu.a -ldl -lm
+#cgo darwin,amd64 LDFLAGS: ${SRCDIR}/librs_templating_x86_darwin.a -ldl -lm
+#cgo darwin,arm64 LDFLAGS: ${SRCDIR}/librs_templating_aarch64_darwin.a -ldl -lm
 #include "./lib_ffi.h"
 */
 import "C"
